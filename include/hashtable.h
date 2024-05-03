@@ -11,6 +11,7 @@ extern int ht_get(HashTable *ht, const char *key);
 extern void ht_put(HashTable *ht, const char *key, const int val);
 extern int ht_remove(HashTable *ht, const char *key);
 extern void ht_del(HashTable *ht);
+extern void ht_print(HashTable *ht);
 
 #endif
 

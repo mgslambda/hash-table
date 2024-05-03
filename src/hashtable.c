@@ -6,6 +6,7 @@
 #define INIT_SIZE 8
 #define MAX_LOAD 0.5f
 #define MIN_LOAD 0.25f  // TODO: is this a good value to use?
+#define GROWTH_FACTOR 2
 
 typedef struct ht_entry {
     const char *key;
@@ -73,7 +74,7 @@ void ht_put(HashTable *ht, const char *key, const int val) {
     ht->entries[ht_idx] = _ht_entry_init(key, val);
     ht->size++;
     ht->_size++;
-    if ((float) ht->_size / ht->capacity > MAX_LOAD)
+    if ((float) ht->_size / ht->capacity >= MAX_LOAD)
         _expand(ht);
 }
 
@@ -110,4 +111,34 @@ static Entry *_ht_entry_init(const char *key, const int val) {
     e->is_removable = 0;
     return e;
 }
+
+static unsigned _hash1(const char *key) {}  // TODO: The hash functions will most likely need additional params (e.g., table size)
+
+static unsigned _hash2(const char *key) {}
+
+static void _rehash_entry(HashTable *old_table, size_t entry_idx, Entry **new_table) {  // triple pointer?
+    size_t i = 1;
+    unsigned ht_idx = _hash1(old_table->entries[entry_idx]->key);
+    while (newtable[ht_idx] != NULL && !new_table[ht_idx]->is_removable && i <= old_table->_size) {
+        ht_idx = (_hash1(old_table->entries[entry_idx]->key) + i * _hash2(old_table->entries[entry_idx]->key)) % old_table->capacity * GROWTH_FACTOR;
+        i++;
+    }
+    // add old_table entry to new_table at index ht_idx
+}
+
+static void _expand(HashTable *ht) {
+    Entry **new_table = malloc(sizeof(*new_table) * ht->capacity * GROWTH_FACTOR);
+    for (size_t i = 0; i < ht->capacity; i++) {
+        if (ht->entries[i] != NULL) {
+            if (!ht->entries[i]->is_removable)
+                _rehash_entry(ht, i, new_table);
+            free(ht->entries[i]);
+        }
+    }
+    free(ht->entries);
+    ht->entries = new_table;
+    ht->capacity *= GROWTH_FACTOR;
+}
+
+static void _shrink(HashTable *ht) {}
 
