@@ -53,7 +53,7 @@ int ht_is_empty(HashTable *ht) {
 int ht_get(HashTable *ht, const char *key) {
     size_t i = 1;
     unsigned ht_idx = _hash1(key);
-    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable) {
+    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {
         if (!strcmp(ht->entries[ht_idx]->key, key))
             return ht->entries[ht_idx]->val;
         ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
@@ -66,7 +66,7 @@ int ht_get(HashTable *ht, const char *key) {
 void ht_put(HashTable *ht, const char *key, const int val) {
     size_t i = 1;
     unsigned ht_idx = _hash1(key);
-    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable) {
+    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {
         ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
         i++;
     }
@@ -77,7 +77,24 @@ void ht_put(HashTable *ht, const char *key, const int val) {
         _expand(ht);
 }
 
-int ht_remove(HashTable *ht, const char *key) {}
+int ht_remove(HashTable *ht, const char *key) {
+    size_t i = 1;
+    unsigned ht_idx = _hash1(key);
+    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {
+        if (!strcmp(ht->entries[ht_idx]->key, key)) {
+            int val = ht->entries[ht_idx]->val;
+            ht->entries[ht_idx]->is_removable = 1;
+            ht->size--;
+            if (ht->size <= (int) (MIN_LOAD * ht->capacity))
+                _shrink(ht);
+            return val;
+        }
+        ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
+        i++;
+    }
+    fprintf(stderr, "Cannot remove entry with key '%s', as it does not exist\n", key);
+    exit(EXIT_FAILURE);
+}
 
 static void _throw_error(const char *msg) {
     fprintf(stderr, "%s\n", msg);
