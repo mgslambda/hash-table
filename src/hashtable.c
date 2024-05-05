@@ -54,7 +54,7 @@ int ht_is_empty(HashTable *ht) {
 int ht_get(HashTable *ht, const char *key) {
     size_t i = 1;
     unsigned ht_idx = _hash1(key);
-    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {
+    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {  // is the third condition needed?
         if (!strcmp(ht->entries[ht_idx]->key, key))
             return ht->entries[ht_idx]->val;
         ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
@@ -67,7 +67,7 @@ int ht_get(HashTable *ht, const char *key) {
 void ht_put(HashTable *ht, const char *key, const int val) {
     size_t i = 1;
     unsigned ht_idx = _hash1(key);
-    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {
+    while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable) {
         ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
         i++;
     }
@@ -116,14 +116,21 @@ static unsigned _hash1(const char *key) {}  // TODO: The hash functions will mos
 
 static unsigned _hash2(const char *key) {}
 
-static void _rehash_entry(HashTable *old_table, size_t entry_idx, Entry **new_table) {  // triple pointer?
+static void _rehash_entry(HashTable *old_table, size_t entry_idx, Entry **new_table) {
+    size_t new_table_capacity = old_table->capacity * GROWTH_FACTOR;
+    // char *old_entry_key = malloc(sizeof(old_table->entries[entry_idx]->key));
+    char old_entry_key[sizeof(old_table->entries[entry_idx]->key)];
+    strncpy(old_entry_key, old_table->entries[entry_idx]->key, sizeof(old_entry_key) - 1);
+    old_entry_key[sizeof(old_entry_key) - 1] = '\0';
+    int old_entry_val = old_table->entries[entry_idx]->val;
+
     size_t i = 1;
     unsigned ht_idx = _hash1(old_table->entries[entry_idx]->key);
-    while (newtable[ht_idx] != NULL && !new_table[ht_idx]->is_removable && i <= old_table->_size) {
-        ht_idx = (_hash1(old_table->entries[entry_idx]->key) + i * _hash2(old_table->entries[entry_idx]->key)) % old_table->capacity * GROWTH_FACTOR;
+    while (new_table[ht_idx] != NULL) {
+        ht_idx = (_hash1(old_table->entries[entry_idx]->key) + i * _hash2(old_table->entries[entry_idx]->key)) % new_table_capacity;
         i++;
     }
-    // add old_table entry to new_table at index ht_idx
+    new_table[ht_idx] = _ht_entry_init(old_entry_key, old_entry_val);
 }
 
 static void _expand(HashTable *ht) {
@@ -138,6 +145,7 @@ static void _expand(HashTable *ht) {
     free(ht->entries);
     ht->entries = new_table;
     ht->capacity *= GROWTH_FACTOR;
+    ht->_size = ht->size;
 }
 
 static void _shrink(HashTable *ht) {}
