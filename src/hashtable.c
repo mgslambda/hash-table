@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "../include/hashtable.h"
 
-#define INIT_SIZE 8
+#define INIT_SIZE 8  // TODO: Use prime table sizes
 #define MAX_LOAD 0.5f
-#define MIN_LOAD 0.1f  // TODO: is this a good value to use?
+#define MIN_LOAD 0.1f
 #define GROWTH_FACTOR 2
+#define PRIME1 109345121
+#define PRIME2 201326611
 
 typedef struct ht_entry {
     const char *key;
@@ -21,14 +24,19 @@ struct hashtable {
     size_t capacity;  // load factor = _size / capacity
 };
 
+static int is_seeded = 0;
+
 static void _throw_error(const char *msg);
 static Entry *_ht_entry_init(const char *key, const int val);
-static unsigned _hash1(const char *key);
-static unsigned _hash2(const char *key);
+static unsigned _hash(const char *key, unsigned p, size_t table_capacity);
 static void _expand(HashTable *ht);
 static void _shrink(HashTable *ht);
 
 HashTable *ht_init() {
+    if (!is_seeded) {
+        srand(time(NULL));
+        is_seeded = 1;
+    }
     HashTable *ht = malloc(sizeof(*ht));
     if (ht == NULL)
         _throw_error("Could not allocate memory for HashTable");
@@ -53,11 +61,11 @@ int ht_is_empty(HashTable *ht) {
 
 int ht_get(HashTable *ht, const char *key) {
     size_t i = 1;
-    unsigned ht_idx = _hash1(key);
+    unsigned ht_idx = _hash(key, PRIME1, ht->capacity);
     while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {  // is the third condition needed?
         if (!strcmp(ht->entries[ht_idx]->key, key))
             return ht->entries[ht_idx]->val;
-        ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
+        ht_idx = (_hash(key, PRIME1, ht->capacity) + i * _hash(key, PRIME2, ht->capacity)) % ht->capacity;
         i++;
     }
     fprintf(stderr, "Entry with key '%s' not found in HashTable\n", key);
@@ -66,9 +74,9 @@ int ht_get(HashTable *ht, const char *key) {
 
 void ht_put(HashTable *ht, const char *key, const int val) {
     size_t i = 1;
-    unsigned ht_idx = _hash1(key);
+    unsigned ht_idx = _hash(key, PRIME1, ht->capacity);
     while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable) {
-        ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
+        ht_idx = (_hash(key, PRIME1, ht->capacity) + i * _hash(key, PRIME2, ht->capacity)) % ht->capacity;
         i++;
     }
     ht->entries[ht_idx] = _ht_entry_init(key, val);
@@ -80,7 +88,7 @@ void ht_put(HashTable *ht, const char *key, const int val) {
 
 int ht_remove(HashTable *ht, const char *key) {
     size_t i = 1;
-    unsigned ht_idx = _hash1(key);
+    unsigned ht_idx = _hash(key, PRIME1, ht->capacity);
     while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {
         if (!strcmp(ht->entries[ht_idx]->key, key)) {
             int val = ht->entries[ht_idx]->val;
@@ -90,7 +98,7 @@ int ht_remove(HashTable *ht, const char *key) {
                 _shrink(ht);
             return val;
         }
-        ht_idx = (_hash1(key) + i * _hash2(key)) % ht->capacity;
+        ht_idx = (_hash(key, PRIME1, ht->capacity) + i * _hash(key, PRIME2, ht->capacity)) % ht->capacity;
         i++;
     }
     fprintf(stderr, "Cannot remove entry with key '%s', as it does not exist\n", key);
@@ -112,16 +120,27 @@ static Entry *_ht_entry_init(const char *key, const int val) {
     return e;
 }
 
-static unsigned _hash1(const char *key) {}  // TODO: The hash functions will most likely need additional params (e.g., table size)
+static unsigned _compress(unsigned i, unsigned p, size_t m) {
+    unsigned scale = rand() % p + 1;
+    unsigned shift = rand() % p;
+    return ((scale * i + shift) % p) % m;
+}
 
-static unsigned _hash2(const char *key) {}
+static unsigned _hash(const char *key, unsigned p, size_t table_capacity) {
+    unsigned h = 0;
+    for (; *key != '\0'; key++) {
+        h = (h << 5) | (h >> 27);  // cyclic shift
+        h += *key;
+    }
+    return _compress(h, p, table_capacity);
+}
 
 static void _rehash_entry(HashTable *old_table, size_t entry_idx, Entry **new_table) {
     size_t new_table_capacity = old_table->capacity * GROWTH_FACTOR;
     size_t i = 1;
-    unsigned ht_idx = _hash1(old_table->entries[entry_idx]->key);
+    unsigned ht_idx = _hash(old_table->entries[entry_idx]->key, PRIME1, new_table_capacity);
     while (new_table[ht_idx] != NULL) {
-        ht_idx = (_hash1(old_table->entries[entry_idx]->key) + i * _hash2(old_table->entries[entry_idx]->key)) % new_table_capacity;
+        ht_idx = (_hash(old_table->entries[entry_idx]->key, PRIME1, new_table_capacity) + i * _hash(old_table->entries[entry_idx]->key, PRIME2, new_table_capacity)) % new_table_capacity;
         i++;
     }
     new_table[ht_idx] = _ht_entry_init(old_table->entries[entry_idx]->key, old_table->entries[entry_idx]->val);
