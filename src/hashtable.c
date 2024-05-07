@@ -105,6 +105,12 @@ int ht_remove(HashTable *ht, const char *key) {
     exit(EXIT_FAILURE);
 }
 
+void ht_del(HashTable *ht) {
+    // free each entry's key?
+    // free each entry
+    // free ht
+}
+
 static void _throw_error(const char *msg) {
     fprintf(stderr, "%s\n", msg);
     exit(EXIT_FAILURE);
