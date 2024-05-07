@@ -65,7 +65,7 @@ int ht_get(HashTable *ht, const char *key) {
     while (ht->entries[ht_idx] != NULL && !ht->entries[ht_idx]->is_removable && i <= ht->_size) {  // is the third condition needed?
         if (!strcmp(ht->entries[ht_idx]->key, key))
             return ht->entries[ht_idx]->val;
-        ht_idx = (_hash(key, PRIME1, ht->capacity) + i * _hash(key, PRIME2, ht->capacity)) % ht->capacity;
+        ht_idx = (_hash(key, PRIME1, ht->capacity) + i * _hash(key, PRIME2, ht->capacity)) % ht->capacity;  // TODO: the second hash function should be odd if the table capacity is even
         i++;
     }
     fprintf(stderr, "Entry with key '%s' not found in HashTable\n", key);
